@@ -1,0 +1,109 @@
+spring:
+  application:
+    name: ms-globant-products
+  webflux:
+    base-path: /
+
+server:
+  port: 5000
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+
+# External API Configuration
+external-api:
+  base-url: http://localhost:3001
+  timeout: 5000  # milliseconds
+
+# WebClient Configuration
+webclient:
+  connection-provider:
+    max-connections: 500
+    max-idle-time: 20s
+    max-life-time: 60s
+    pending-acquire-timeout: 60s
+    eviction-interval: 120s
+  http-client:
+    connect-timeout: 5000
+    read-timeout: 5000
+    write-timeout: 5000
+    response-timeout: 10s
+
+# Cache Configuration (Caffeine)
+spring.cache:
+  type: caffeine
+  cache-names:
+    product-details
+  caffeine:
+    spec: maximumSize=1000,expireAfterWrite=10m
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      productApiClient:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        event-consumer-buffer-size: 10
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - org.springframework.web.reactive.function.client.WebClientResponseException$NotFound
+          - org.springframework.web.reactive.function.client.WebClientResponseException$GatewayTimeout
+          - org.springframework.web.reactive.function.client.WebClientResponseException$ServiceUnavailable
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
+  timelimiter:
+    instances:
+      productApiClient:
+        timeout-duration: 10s
+        cancel-running-future: true
+
+  retry:
+    instances:
+      productApiClient:
+        max-attempts: 3
+        wait-duration: 1s
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - org.springframework.web.reactive.function.client.WebClientResponseException$NotFound
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    export:
+      simple:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.globant.david.msglobantproducts: DEBUG
+    org.springframework.web: INFO
+    io.github.resilience4j: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
