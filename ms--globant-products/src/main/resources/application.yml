@@ -26,18 +26,20 @@ webclient:
     pending-acquire-timeout: 60s
     eviction-interval: 120s
   http-client:
-    connect-timeout: 5000
-    read-timeout: 5000
-    write-timeout: 5000
-    response-timeout: 10s
+    connect-timeout: 2000
+    read-timeout: 3000
+    write-timeout: 1000
+    response-timeout: 5s
 
 # Cache Configuration (Caffeine)
 spring.cache:
   type: caffeine
   cache-names:
-    product-details
+    - product-details
+    - similar-products
   caffeine:
     spec: maximumSize=1000,expireAfterWrite=10m
+    # Per-cache specifications (customized in CacheConfig class)
 
 # Resilience4j Configuration
 resilience4j:
@@ -65,14 +67,14 @@ resilience4j:
   timelimiter:
     instances:
       productApiClient:
-        timeout-duration: 10s
+        timeout-duration: 5s
         cancel-running-future: true
 
   retry:
     instances:
       productApiClient:
-        max-attempts: 3
-        wait-duration: 1s
+        max-attempts: 2
+        wait-duration: 500ms
         retry-exceptions:
           - java.io.IOException
           - java.util.concurrent.TimeoutException

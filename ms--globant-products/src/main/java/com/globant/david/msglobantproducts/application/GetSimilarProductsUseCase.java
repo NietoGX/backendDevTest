@@ -24,7 +24,7 @@ public class GetSimilarProductsUseCase {
     public Flux<ProductDetail> execute(String productId) {
         return productRepository.findSimilarIds(productId)
                 .doOnNext(ids -> log.debug("Found {} similar IDs for product {}", ids.size(), productId))
-                .flatMapMany(ids -> productRepository.findProductDetails(ids))
+                .flatMapMany(productRepository::findProductDetails)
                 .doOnComplete(() -> log.debug("Completed fetching similar products for {}", productId));
     }
 }
