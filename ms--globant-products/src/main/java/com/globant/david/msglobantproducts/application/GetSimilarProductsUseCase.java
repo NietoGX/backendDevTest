@@ -1,12 +1,12 @@
 package com.globant.david.msglobantproducts.application;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.globant.david.msglobantproducts.domain.model.ProductDetail;
 import com.globant.david.msglobantproducts.domain.repository.ProductRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -23,8 +23,6 @@ public class GetSimilarProductsUseCase {
 
     public Flux<ProductDetail> execute(String productId) {
         return productRepository.findSimilarIds(productId)
-                .doOnNext(ids -> log.debug("Found {} similar IDs for product {}", ids.size(), productId))
-                .flatMapMany(productRepository::findProductDetails)
-                .doOnComplete(() -> log.debug("Completed fetching similar products for {}", productId));
+                .flatMapMany(productRepository::findProductDetails);
     }
 }
