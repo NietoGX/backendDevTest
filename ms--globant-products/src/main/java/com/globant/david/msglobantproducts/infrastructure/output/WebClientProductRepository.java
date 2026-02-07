@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.globant.david.msglobantproducts.domain.model.ProductDetail;
 import com.globant.david.msglobantproducts.domain.repository.ProductRepository;
 import com.globant.david.msglobantproducts.infrastructure.output.dto.ProductResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
@@ -18,12 +19,12 @@ public class WebClientProductRepository implements ProductRepository {
 
     private static final Logger log = LoggerFactory.getLogger(WebClientProductRepository.class);
 
-    private final ProductWebClient productWebClient;
+    private final ResilientProductWebClient productWebClient;
     private final Cache<String, ProductDetail> productDetailCache;
     private final Cache<String, List<String>> similarIdsCache;
 
     public WebClientProductRepository(
-            ProductWebClient productWebClient,
+            ResilientProductWebClient productWebClient,
             Cache<String, ProductDetail> productDetailCache,
             Cache<String, List<String>> similarIdsCache) {
         this.productWebClient = productWebClient;
@@ -38,6 +39,10 @@ public class WebClientProductRepository implements ProductRepository {
             return Mono.just(cached);
         }
         return productWebClient.getSimilarIds(productId)
+                .onErrorResume(CallNotPermittedException.class, e -> {
+                    log.warn("Circuit breaker is OPEN for similar IDs - serving cached or empty response");
+                    return Mono.just(List.of());
+                })
                 .onErrorResume(WebClientResponseException.NotFound.class, e -> Mono.just(List.of()))
                 .onErrorResume(e -> {
                     log.error("Error fetching similar IDs: {}", e.getMessage());
@@ -54,6 +59,10 @@ public class WebClientProductRepository implements ProductRepository {
         }
         return productWebClient.getProduct(productId)
                 .map(this::toProductDetail)
+                .onErrorResume(CallNotPermittedException.class, e -> {
+                    log.warn("Circuit breaker is OPEN for product detail - serving cached or empty response");
+                    return Mono.empty();
+                })
                 .onErrorResume(WebClientResponseException.NotFound.class, e -> {
                     log.warn("Product not found: {}", productId);
                     return Mono.empty();
