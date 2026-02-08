@@ -19,6 +19,7 @@ external-api:
 
 # WebClient Configuration
 webclient:
+  flatmap-concurrency: 10
   connection-provider:
     max-connections: 500
     max-idle-time: 20s

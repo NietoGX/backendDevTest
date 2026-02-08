@@ -7,6 +7,7 @@ import com.globant.david.msglobantproducts.infrastructure.output.dto.ProductResp
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
@@ -22,14 +23,17 @@ public class WebClientProductRepository implements ProductRepository {
     private final ResilientProductWebClient productWebClient;
     private final Cache<String, ProductDetail> productDetailCache;
     private final Cache<String, List<String>> similarIdsCache;
+    private final int flatmapConcurrency;
 
     public WebClientProductRepository(
             ResilientProductWebClient productWebClient,
             Cache<String, ProductDetail> productDetailCache,
-            Cache<String, List<String>> similarIdsCache) {
+            Cache<String, List<String>> similarIdsCache,
+            @Value("${webclient.flatmap-concurrency}") int flatmapConcurrency) {
         this.productWebClient = productWebClient;
         this.productDetailCache = productDetailCache;
         this.similarIdsCache = similarIdsCache;
+        this.flatmapConcurrency = flatmapConcurrency;
     }
 
     @Override
@@ -79,7 +83,7 @@ public class WebClientProductRepository implements ProductRepository {
     @Override
     public Flux<ProductDetail> findProductDetails(List<String> productIds) {
         return Flux.fromIterable(productIds)
-                .flatMap(this::findProductDetail, 10)
+                .flatMap(this::findProductDetail, flatmapConcurrency)
                 .filter(detail -> detail.id() != null);
     }
 
