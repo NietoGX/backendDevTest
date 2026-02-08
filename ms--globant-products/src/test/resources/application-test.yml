@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: ms-globant-products-test
+  webflux:
+    base-path: /
+
+server:
+  port: 0  # Random port for tests
+
+# External API Configuration (using mock server URL)
+external-api:
+  base-url: http://localhost:3001
+  timeout: 5000
+
+# WebClient Configuration
+webclient:
+  connection-provider:
+    max-connections: 50
+    max-idle-time: 20s
+    max-life-time: 60s
+    pending-acquire-timeout: 60s
+    eviction-interval: 120s
+  http-client:
+    connect-timeout: 2000
+    read-timeout: 3000
+    write-timeout: 1000
+    response-timeout: 5s
+
+# Cache Configuration (Caffeine) - smaller for tests
+spring.cache:
+  type: caffeine
+  cache-names:
+    - product-details
+    - similar-products
+  caffeine:
+    spec: maximumSize=100,expireAfterWrite=1m
+
+# Resilience4j Configuration - faster transitions for tests
+resilience4j:
+  circuitbreaker:
+    instances:
+      productApiClient:
+        register-health-indicator: true
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 1s
+        failure-rate-threshold: 50
+        event-consumer-buffer-size: 10
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
+  timelimiter:
+    instances:
+      productApiClient:
+        timeout-duration: 3s
+        cancel-running-future: true
+
+  retry:
+    instances:
+      productApiClient:
+        max-attempts: 1
+        wait-duration: 100ms
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      simple:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: WARN
+    com.globant.david.msglobantproducts: DEBUG
+    org.springframework.web: WARN
+    io.github.resilience4j: WARN
