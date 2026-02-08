@@ -1,66 +1,66 @@
 # ms-globant-products
 
-Microservicio Spring Boot que expone un endpoint para obtener productos similares, consumiendo APIs externas con patrones de resiliencia y caché.
+Spring Boot microservice that exposes an endpoint to retrieve similar products, consuming external APIs with resilience patterns and caching.
 
-## Tabla de Contenidos
+## Table of Contents
 
-- [Inicialización del Proyecto](#inicialización-del-proyecto)
-- [Arquitectura](#arquitectura)
-- [Estructura del Proyecto](#estructura-del-proyecto)
-- [Implementación de Caché](#implementación-de-caché)
+- [Project Setup](#project-setup)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Cache Implementation](#cache-implementation)
 - [Circuit Breaker](#circuit-breaker)
-- [WebClient vs WebDriver](#webclient-vs-webdriver)
+- [WebClient vs Feign](#webclient-vs-feign)
 - [API Endpoints](#api-endpoints)
-- [Technologas y Dependencias](#tecnologas-y-dependencias)
+- [Technologies and Dependencies](#technologies-and-dependencies)
 - [Testing](#testing)
 
 ---
 
-## Inicialización del Proyecto
+## Project Setup
 
-### Requisitos Previos
+### Prerequisites
 
 - Java 21
-- Gradle 8.x (o usar el wrapper incluido)
-- API externa corriendo en `localhost:3001`
+- Gradle 8.x (or use the included wrapper)
+- External API running on `localhost:3001`
 
-### Ejecución
+### Running the Application
 
 ```bash
-# Compilar el proyecto
+# Build the project
 ./gradlew build
 
-# Ejecutar la aplicación
+# Run the application
 ./gradlew bootRun
 ```
 
-La aplicación se iniciará en el puerto **5000**.
+The application will start on port **5000**.
 
-### Configuración
+### Configuration
 
-La configuración principal se encuentra en `src/main/resources/application.yml`:
+Main configuration is located in `src/main/resources/application.yml`:
 
-| Propiedad | Valor por defecto | Descripción |
-|-----------|-------------------|-------------|
-| `server.port` | 5000 | Puerto de escucha del servidor |
-| `external-api.base-url` | http://localhost:3001 | URL base de la API externa |
-| `external-api.timeout` | 5000ms | Timeout para llamadas externas |
+| Property | Default Value | Description |
+|-----------|---------------|-------------|
+| `server.port` | 5000 | Server listening port |
+| `external-api.base-url` | http://localhost:3001 | External API base URL |
+| `external-api.timeout` | 5000ms | Timeout for external calls |
 
-### Perfiles
+### Profiles
 
-- **default**: Configuración de producción con caché habilitado
-- **integration**: Deshabilita caché para tests de integración
+- **default**: Production configuration with cache enabled
+- **integration**: Disables cache for integration tests
 
 ```bash
-# Ejecutar con perfil de integración
+# Run with integration profile
 ./gradlew bootRun --args='--spring.profiles.active=integration'
 ```
 
 ---
 
-## Arquitectura
+## Architecture
 
-El proyecto sigue el patrón de **Arquitectura Hexagonal (Ports and Adapters)**, separando claramente la lógica de negocio de los detalles técnicos.
+The project follows the **Hexagonal Architecture (Ports and Adapters)** pattern, clearly separating business logic from technical details.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -90,61 +90,61 @@ El proyecto sigue el patrón de **Arquitectura Hexagonal (Ports and Adapters)**,
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Principios de Diseño
+### Design Principles
 
-1. **Domain Layer**: Contiene la lógica de negocio pura, sin dependencias externas
-2. **Application Layer**: Orquesta los casos de uso (UseCases)
-3. **Infrastructure Layer**: Implementa detalles técnicos (WebClient, caché, etc.)
-4. **Dependency Inversion**: El dominio define interfaces que la infraestructura implementa
+1. **Domain Layer**: Contains pure business logic, without external dependencies
+2. **Application Layer**: Orchestrates use cases (UseCases)
+3. **Infrastructure Layer**: Implements technical details (WebClient, cache, etc.)
+4. **Dependency Inversion**: The domain defines interfaces that infrastructure implements
 
 ---
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 src/main/java/com/globant/david/msglobantproducts/
 │
-├── MsGlobantProductsApplication.java    # Clase principal de Spring Boot
+├── MsGlobantProductsApplication.java    # Main Spring Boot class
 │
-├── application/                         # Capa de Aplicación (Casos de Uso)
+├── application/                         # Application Layer (Use Cases)
 │   └── GetSimilarProductsUseCase.java
 │
-├── domain/                              # Capa de Dominio
+├── domain/                              # Domain Layer
 │   ├── model/
-│   │   └── ProductDetail.java          # Entidad de dominio (inmutable)
+│   │   └── ProductDetail.java          # Domain entity (immutable)
 │   └── repository/
-│       └── ProductRepository.java      # Interfaz del repositorio
+│       └── ProductRepository.java      # Repository interface
 │
-└── infrastructure/                      # Capa de Infraestructura
+└── infrastructure/                      # Infrastructure Layer
     ├── config/
-    │   ├── CacheConfig.java            # Configuración de caché Caffeine
-    │   └── WebClientConfig.java        # Configuración de WebClient
+    │   ├── CacheConfig.java            # Caffeine cache configuration
+    │   └── WebClientConfig.java        # WebClient configuration
     ├── input/
-    │   └── ProductController.java      # Endpoint REST
+    │   └── ProductController.java      # REST endpoint
     └── output/
-        ├── ResilientProductWebClient.java  # WebClient con Circuit Breaker
-        ├── WebClientProductRepository.java # Implementación del repositorio
+        ├── ResilientProductWebClient.java  # WebClient with Circuit Breaker
+        ├── WebClientProductRepository.java # Repository implementation
         └── dto/
-            └── ProductResponse.java    # DTO para respuestas externas
+            └── ProductResponse.java    # DTO for external responses
 ```
 
 ---
 
-## Implementación de Caché
+## Cache Implementation
 
-El proyecto utiliza **Caffeine** como proveedor de caché, una biblioteca de alto rendimiento para Java.
+The project uses **Caffeine** as the cache provider, a high-performance library for Java.
 
-### Caches Configurados
+### Configured Caches
 
-| Cache | Propósito | Máximo Entradas | TTL |
-|-------|-----------|-----------------|-----|
-| `productDetailCache` | Almacenar detalles de productos | 1000 | 10 minutos |
-| `similarProductsCache` | Almacenar listas de productos similares | 500 | 5 minutos |
-| `similarIdsCache` | Almacenar IDs de productos similares | 500 | 5 minutos |
+| Cache | Purpose | Max Entries | TTL |
+|-------|---------|-------------|-----|
+| `productDetailCache` | Store product details | 1000 | 10 minutes |
+| `similarProductsCache` | Store similar product lists | 500 | 5 minutes |
+| `similarIdsCache` | Store similar product IDs | 500 | 5 minutes |
 
-### Configuración
+### Configuration
 
-La configuración se encuentra en `CacheConfig.java:14-61`:
+Configuration is located in `CacheConfig.java:14-61`:
 
 ```java
 @Bean
@@ -157,51 +157,51 @@ public Cache<String, ProductDetail> productDetailCache() {
 }
 ```
 
-### Patrón Cache-Aside
+### Cache-Aside Pattern
 
-La implementación sigue el patrón *cache-aside* en `WebClientProductRepository.java:36-51`:
+The implementation follows the *cache-aside* pattern in `WebClientProductRepository.java:36-51`:
 
-1. **Read-Through**: Primero verifica si el dato está en caché
-2. **Cache Miss**: Si no está, hace la llamada a la API externa
-3. **Cache Populate**: Almacena el resultado en caché para futuras consultas
+1. **Read-Through**: First checks if data is in cache
+2. **Cache Miss**: If not, makes the call to the external API
+3. **Cache Populate**: Stores the result in cache for future queries
 
 ```java
 public Mono<List<String>> findSimilarIds(String productId) {
     List<String> cached = similarIdsCache.getIfPresent(productId);
     if (cached != null) {
-        return Mono.just(cached);  // Retorna desde caché
+        return Mono.just(cached);  // Return from cache
     }
     return productWebClient.getSimilarIds(productId)
             .doOnNext(ids -> similarIdsCache.put(productId, ids));
 }
 ```
 
-### Por qué Caffeine
+### Why Caffeine
 
-- **Alto rendimiento**: Mejor rendimiento que ConcurrentHashMap o Guava
-- **Bajo overhead**: Optimizado para escenarios de alta concurrencia
-- **Estadísticas integradas**: Métricas de hit rate, eviction, etc.
-- **Configuración flexible**: TTL, tamaño máximo, expiración basada en acceso
+- **High performance**: Better performance than ConcurrentHashMap or Guava
+- **Low overhead**: Optimized for high concurrency scenarios
+- **Built-in statistics**: Hit rate, eviction, and other metrics
+- **Flexible configuration**: TTL, maximum size, access-based expiration
 
 ---
 
 ## Circuit Breaker
 
-El proyecto implementa el patrón **Circuit Breaker** usando **Resilience4j** para manejar fallos en llamadas a servicios externos.
+The project implements the **Circuit Breaker** pattern using **Resilience4j** to handle failures in external service calls.
 
-### Configuración
+### Configuration
 
-La configuración en `application.yml:44-84` define:
+Configuration in `application.yml:44-84` defines:
 
-| Propiedad | Valor | Descripción |
+| Property | Value | Description |
 |-----------|-------|-------------|
-| `sliding-window-size` | 10 | Ventana de llamadas para evaluar |
-| `minimum-number-of-calls` | 5 | Mínimo de llamadas antes de evaluar |
-| `failure-rate-threshold` | 50% | Porcentaje de fallos para abrir |
-| `wait-duration-in-open-state` | 10s | Tiempo de espera antes de half-open |
-| `permitted-number-of-calls-in-half-open-state` | 3 | Llamadas permitidas en half-open |
+| `sliding-window-size` | 10 | Call window for evaluation |
+| `minimum-number-of-calls` | 5 | Minimum calls before evaluation |
+| `failure-rate-threshold` | 50% | Failure percentage to open |
+| `wait-duration-in-open-state` | 10s | Wait time before half-open |
+| `permitted-number-of-calls-in-half-open-state` | 3 | Calls allowed in half-open |
 
-### Estados del Circuit Breaker
+### Circuit Breaker States
 
 ```
 ┌─────────┐      ┌─────────┐      ┌─────────────┐
@@ -210,16 +210,16 @@ La configuración en `application.yml:44-84` define:
     ^                                  │
     │                                  │
     └──────────────────────────────────┘
-           (fallos < 50%)  (éxito)
+           (failures < 50%)  (success)
 ```
 
-1. **CLOSED**: Estado normal, las peticiones pasan directamente
-2. **OPEN**: Umbral de fallos superado, se rechazan las peticiones inmediatamente
-3. **HALF-OPEN**: Se permiten algunas peticiones para verificar si el servicio se ha recuperado
+1. **CLOSED**: Normal state, requests pass through directly
+2. **OPEN**: Failure threshold exceeded, requests are rejected immediately
+3. **HALF-OPEN**: Some requests allowed to verify if service has recovered
 
-### Implementación
+### Implementation
 
-En `ResilientProductWebClient.java:39-59`:
+In `ResilientProductWebClient.java:39-59`:
 
 ```java
 public Mono<List<String>> getSimilarIds(String productId) {
@@ -233,9 +233,9 @@ public Mono<List<String>> getSimilarIds(String productId) {
 }
 ```
 
-### Fallback ante Fallos
+### Fallback on Failure
 
-En `WebClientProductRepository.java:42-50`:
+In `WebClientProductRepository.java:42-50`:
 
 ```java
 .onErrorResume(CallNotPermittedException.class, e -> {
@@ -244,20 +244,20 @@ En `WebClientProductRepository.java:42-50`:
 })
 ```
 
-Cuando el circuito está abierto:
-- Se retorna respuesta vacía o desde caché
-- El servicio permanece disponible degradadamente
-- Se loggea el evento para monitoreo
+When the circuit is open:
+- Empty or cached response is returned
+- Service remains available in degraded mode
+- Event is logged for monitoring
 
 ### Retry Strategy
 
-- **Max attempts**: 2 intentos
-- **Wait duration**: 500ms entre reintentos
-- **Excepciones reintentables**: IOException, TimeoutException, WebClientRequestException
+- **Max attempts**: 2 attempts
+- **Wait duration**: 500ms between retries
+- **Retryable exceptions**: IOException, TimeoutException, WebClientRequestException
 
-### Monitoreo
+### Monitoring
 
-Spring Boot Actuator expone métricas del circuit breaker:
+Spring Boot Actuator exposes circuit breaker metrics:
 
 ```bash
 curl http://localhost:5000/actuator/circuitbreakers
@@ -268,63 +268,63 @@ curl http://localhost:5000/actuator/health
 
 ## WebClient vs Feign
 
-### ¿Por qué WebClient en lugar de Feign?
+### Why WebClient instead of Feign?
 
-Este proyecto utiliza **Spring WebFlux WebClient** en lugar de **OpenFeign** para las llamadas HTTP a servicios externos.
+This project uses **Spring WebFlux WebClient** instead of **OpenFeign** for HTTP calls to external services.
 
-### Comparativa Técnica
+### Technical Comparison
 
-| Aspecto | Feign | WebClient (WebFlux) |
+| Aspect | Feign | WebClient (WebFlux) |
 |---------|-------|---------------------|
-| **Modelo de ejecución** | Bloqueante (síncrono) | No bloqueante (reactivo) |
-| **Tipo de retorno** | Objeto directo, wrappers opcionales | `Mono`/`Flux` (Project Reactor) |
-| **Backpressure** | No soportado | Soportado nativamente |
-| **Concurrency** | Un hilo por petición | I/O asíncrono con event loop |
-| **Declarativo** | Anotaciones `@FeignClient` | API fluente/programática |
-| **Integración Stack** | Spring MVC/Servlet | Spring WebFlux/Reactor |
+| **Execution model** | Blocking (synchronous) | Non-blocking (reactive) |
+| **Return type** | Direct object, optional wrappers | `Mono`/`Flux` (Project Reactor) |
+| **Backpressure** | Not supported | Natively supported |
+| **Concurrency** | One thread per request | Async I/O with event loop |
+| **Declarative** | `@FeignClient` annotations | Fluent/programmatic API |
+| **Stack Integration** | Spring MVC/Servlet | Spring WebFlux/Reactor |
 
-### Rendimiento: k6 Benchmark
+### Performance: k6 Benchmark
 
-Según los tests de carga ejecutados con **k6**, WebClient muestra un rendimiento significativamente superior:
+According to load tests executed with **k6**, WebClient shows significantly superior performance:
 
-| Métrica | Feign | WebClient | Mejora |
-|---------|-------|-----------|--------|
+| Metric | Feign | WebClient | Improvement |
+|--------|-------|-----------|-------------|
 | **Throughput** | ~50 req/s | ~150 req/s | **3x** |
-| **Latencia media** | ~40ms | ~12ms | **70% menor** |
-| **Latencia p95** | ~80ms | ~25ms | **69% menor** |
+| **Avg latency** | ~40ms | ~12ms | **70% lower** |
+| **p95 latency** | ~80ms | ~25ms | **69% lower** |
 
-> **Resultado**: WebClient procesa **3 veces más peticiones por segundo** que Feign bajo la misma carga.
+> **Result**: WebClient processes **3 times more requests per second** than Feign under the same load.
 
-### ¿Por qué esta diferencia?
+### Why this difference?
 
-1. **Modelo reactivo**: WebClient no bloquea hilos mientras espera la respuesta HTTP
-2. **Connection pooling eficiente**: Reutilización óptima de conexiones HTTP/2
-3. **Zero-copy**: Menor overhead en serialización/deserialización
-4. **Event loop**: Un único hilo puede manejar miles de conexiones concurrentes
+1. **Reactive model**: WebClient doesn't block threads while waiting for HTTP response
+2. **Efficient connection pooling**: Optimal HTTP/2 connection reuse
+3. **Zero-copy**: Lower overhead in serialization/deserialization
+4. **Event loop**: A single thread can handle thousands of concurrent connections
 
-### Ventajas de WebClient en este Proyecto
+### WebClient Advantages in this Project
 
-1. **Alto rendimiento**: ~150 req/s vs ~50 req/s de Feign
-2. **Escalabilidad**: Maneja más conexiones con menos recursos
-3. **Backpressure**: Control de flujo automático ante picos de tráfico
-4. **Integración con Resilience4j**: Operadores reactivos para Circuit Breaker
-5. **Testing simplificado**: WireMock simula el servidor HTTP sin overhead
+1. **High performance**: ~150 req/s vs ~50 req/s for Feign
+2. **Scalability**: Handles more connections with fewer resources
+3. **Backpressure**: Automatic flow control during traffic spikes
+4. **Resilience4j integration**: Reactive operators for Circuit Breaker
+5. **Simplified testing**: WireMock simulates HTTP server without overhead
 
-### Configuración de WebClient
+### WebClient Configuration
 
-En `WebClientConfig.java` se configura con:
-- Connection pool con máximo 500 conexiones
-- Timeouts configurables (connect: 2s, read: 3s)
-- Evitación de recursos inactivos
+In `WebClientConfig.java` it is configured with:
+- Connection pool with maximum 500 connections
+- Configurable timeouts (connect: 2s, read: 3s)
+- Idle resource avoidance
 
 ### Testing
 
-Los tests utilizan **WireMock** para simular la API externa:
+Tests use **WireMock** to simulate the external API:
 
 ```java
 @AutoConfigureWireMock(port = 0)
 class ProductControllerTest {
-    // WireMock simula el servidor HTTP en un puerto aleatorio
+    // WireMock simulates HTTP server on a random port
 }
 ```
 
@@ -332,14 +332,14 @@ class ProductControllerTest {
 
 ## API Endpoints
 
-### Obtener Productos Similares
+### Get Similar Products
 
 ```
 GET /product/{productId}/similar
 ```
 
 **Path Parameters:**
-- `productId` (string): ID del producto
+- `productId` (string): Product ID
 
 **Response (200 OK):**
 ```json
@@ -361,48 +361,48 @@ GET /product/{productId}/similar
 ### Actuator Endpoints
 
 ```
-GET /actuator/health           # Estado del servicio
-GET /actuator/circuitbreakers  # Estado del circuit breaker
-GET /actuator/metrics          # Métricas de la aplicación
+GET /actuator/health           # Service status
+GET /actuator/circuitbreakers  # Circuit breaker status
+GET /actuator/metrics          # Application metrics
 ```
 
 ---
 
-## Tecnologías y Dependencias
+## Technologies and Dependencies
 
-| Dependencia | Versión | Propósito |
-|-------------|---------|-----------|
-| Spring Boot | 4.0.2 | Framework principal |
-| Java | 21 | Lenguaje |
-| Spring WebFlux | - | Programación reactiva |
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| Spring Boot | 4.0.2 | Main framework |
+| Java | 21 | Language |
+| Spring WebFlux | - | Reactive programming |
 | Resilience4j | 2.3.0 | Circuit Breaker, Retry |
-| Caffeine | - | Caché en memoria |
-| Spring Validation | - | Validación de entrada |
-| Spring Actuator | - | Métricas y health checks |
-| Lombok | - | Reducción de boilerplate |
+| Caffeine | - | In-memory cache |
+| Spring Validation | - | Input validation |
+| Spring Actuator | - | Metrics and health checks |
+| Lombok | - | Boilerplate reduction |
 
 ---
 
 ## Testing
 
-### Ejecutar Tests
+### Running Tests
 
 ```bash
-# Todos los tests
+# All tests
 ./gradlew test
 
-# Solo tests unitarios
+# Unit tests only
 ./gradlew test --tests "*Test"
 
-# Tests de integración
+# Integration tests
 ./gradlew test --tests "*IT" --args='--spring.profiles.active=integration'
 ```
 
-### Estrategia de Testing
+### Testing Strategy
 
-1. **Unit Tests**: Prueban componentes individuales
-2. **Integration Tests**: Usan WireMock para simular API externa
-3. **WebTestClient**: Para probar endpoints sin servidor HTTP real
+1. **Unit Tests**: Test individual components
+2. **Integration Tests**: Use WireMock to simulate external API
+3. **WebTestClient**: To test endpoints without real HTTP server
 
 ### Coverage
 
@@ -412,6 +412,6 @@ GET /actuator/metrics          # Métricas de la aplicación
 
 ---
 
-## Autor
+## Author
 
 David Nieto - Backend Dev Technical Test
