@@ -45,9 +45,13 @@ dependencies {
 	// Testing
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("io.projectreactor:reactor-test")
+	testImplementation("org.wiremock:wiremock-standalone:3.9.2")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	// Disable parallel test execution
+	systemProperty("junit.jupiter.execution.parallel.enabled", "false")
+	maxParallelForks = 1
 }
